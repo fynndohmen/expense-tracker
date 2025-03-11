@@ -1,0 +1,5 @@
+fints
+plotly
+pandas
+json
+sqlite3
