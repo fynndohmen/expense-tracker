@@ -1,7 +1,7 @@
 from fints.client import FinTS3PinTanClient
 import os
 from dotenv import load_dotenv
-import loggings
+import logging
 from fints.utils import minimal_interactive_cli_bootstrap  # TAN-Support hinzufügen
 
 # Aktiviert detailliertes Logging für Fehlersuche

@@ -2,7 +2,6 @@ import plotly.graph_objects as go
 import json
 import os
 import pandas as pd
-from calendar import monthrange
 from fints_connector import FinTSConnector  # Importiere FinTSConnector, um den aktuellen Kontostand abzurufen
 
 TRANSACTIONS_FILE = "data/transactions.json"
