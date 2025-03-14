@@ -2,6 +2,7 @@ import plotly.graph_objects as go
 import json
 import os
 import pandas as pd
+from calendar import monthrange
 
 TRANSACTIONS_FILE = "data/transactions.json"
 
@@ -61,7 +62,6 @@ class Visualizer:
             start_date = pd.Timestamp(period.start_time)
             end_date = pd.Timestamp(period.end_time)
             daily_range = pd.date_range(start=start_date, end=end_date, freq="D")
-
             # Filter nur Ausgabenkategorien (kein Income)
             period_data = month_sum_df[
                 (month_sum_df["year_month"] == period) &
@@ -83,6 +83,7 @@ class Visualizer:
 
         if area_list:
             df_area = pd.concat(area_list, ignore_index=True)
+
         else:
             df_area = pd.DataFrame(columns=["date", "category", "month_value"])
 
@@ -93,7 +94,7 @@ class Visualizer:
         final_area_cols = [c for c in area_categories if c in df_area_pivot.columns]
         df_area_pivot = df_area_pivot[final_area_cols]
 
-        # 9) Income: ebenfalls GESAMTER Monatswert pro Tag
+        # 9) Income: ebenfalls GESAMTER Monatswert pro Tag, jetzt im gleichen Format wie die Ausgaben
         df_income_list = []
         income_data = month_sum_df[month_sum_df["category"] == "Income"]
         for period in income_data["year_month"].unique():
@@ -107,20 +108,22 @@ class Visualizer:
             else:
                 total_sum = 0
 
+            # Hier wird jetzt die gleiche Struktur wie bei den Ausgaben verwendet:
             df_temp = pd.DataFrame({
                 "date": daily_range,
-                "Income": total_sum
+                "category": "Income",
+                "month_value": total_sum
             })
             df_income_list.append(df_temp)
 
         if df_income_list:
             df_income = pd.concat(df_income_list, ignore_index=True)
         else:
-            df_income = pd.DataFrame(columns=["date","Income"])
+            df_income = pd.DataFrame(columns=["date", "category", "month_value"])
 
         # Auf gesamten Zeitraum reindexen & füllen
         full_date_range = pd.date_range(start=df["date"].min(), end=df["date"].max(), freq="D")
-        df_income = df_income.set_index("date").reindex(full_date_range).ffill().fillna(0)
+        df_income = df_income.set_index("date").reindex(full_date_range).fillna(0)
 
         # 10) Gesamtkontostand (echter Saldo)
         df_balance = df.copy()
@@ -139,16 +142,16 @@ class Visualizer:
                 mode="lines",
                 stackgroup="same",   # relatives Stapeln
                 hoverinfo="x+y+name",
-                line=dict(width=2)
+                line=dict(width=1)
             ))
 
-        # b) Income als Linie (grün)
+        # b) Income als separate Linie (grün)
         fig.add_trace(go.Scatter(
             name="Income",
             x=df_income.index,
-            y=df_income["Income"],
+            y=df_income["month_value"],
             mode="lines",
-            line=dict(width=3, color="green"),
+            line=dict(width=2, color="green"),
             hoverinfo="x+y+name"
         ))
 
@@ -158,13 +161,13 @@ class Visualizer:
             x=df_balance.index,
             y=df_balance["account_balance"],
             mode="lines",
-            line=dict(width=3, color="black"),
+            line=dict(width=2, color="black"),
             hoverinfo="x+y+name"
         ))
 
         # 12) Layout
         fig.update_layout(
-            title="📊 Monats-Gesamtwerte pro Kategorie (Fixkosten unten, variable Ausgaben oben), Income-Linie & Kontostand",
+            title="📊 Expense Tracker",
             xaxis_title="📅 Datum",
             yaxis_title="💰 Betrag (€)",
             legend_title="Kategorien",

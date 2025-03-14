@@ -1,7 +1,7 @@
 from fints.client import FinTS3PinTanClient
 import os
 from dotenv import load_dotenv
-import logging
+import loggings
 from fints.utils import minimal_interactive_cli_bootstrap  # TAN-Support hinzufügen
 
 # Aktiviert detailliertes Logging für Fehlersuche
@@ -68,6 +68,38 @@ class FinTSConnector:
         except Exception as e:
             logging.error(f"❌ Fehler beim Abrufen der Transaktionen: {e}")
             return []
+
+    def get_balance(self):
+        """
+        Holt den aktuellen Kontostand für alle SEPA-Konten über FinTS.
+        Gibt ein Dictionary zurück, in dem die IBAN als Schlüssel und der Saldo
+        (Betrag und Währung) als Wert enthalten sind.
+        """
+        try:
+            with self.client:
+                # Falls PSD2 eine TAN verlangt, wird sie hier eingegeben
+                if self.client.init_tan_response:
+                    print(f"🔒 TAN erforderlich: {self.client.init_tan_response.challenge}")
+                    tan = input("Bitte TAN eingeben: ")
+                    self.client.send_tan(self.client.init_tan_response, tan)
+
+                accounts = self.client.get_sepa_accounts()
+                balances = {}
+
+                # Für jedes Konto den aktuellen Saldo abrufen
+                for account in accounts:
+                    # Hier wird die Methode get_balance verwendet, falls in der Bibliothek vorhanden
+                    # (Eventuell ist der Methodenname je nach Version anders, prüfe die Dokumentation)
+                    balance = self.client.get_balance(account)
+                    balances[account.iban] = {
+                        "amount": balance.amount,
+                        "currency": balance.currency
+                    }
+                return balances
+
+        except Exception as e:
+            logging.error(f"❌ Fehler beim Abrufen des Kontostands: {e}")
+            return {}
 
     def test_connection(self):
         """Testet die Verbindung zur Bank und listet verfügbare Konten auf."""
