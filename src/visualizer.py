@@ -3,6 +3,7 @@ import json
 import os
 import pandas as pd
 from calendar import monthrange
+from fints_connector import FinTSConnector  # Importiere FinTSConnector, um den aktuellen Kontostand abzurufen
 
 TRANSACTIONS_FILE = "data/transactions.json"
 
@@ -56,13 +57,10 @@ class Visualizer:
         #    das an jedem Tag im Monat den GESAMT-Wert trägt
         area_list = []
         all_periods = month_sum_df["year_month"].unique()
-
         for period in all_periods:
-            # Monat-Start & -Ende
             start_date = pd.Timestamp(period.start_time)
             end_date = pd.Timestamp(period.end_time)
             daily_range = pd.date_range(start=start_date, end=end_date, freq="D")
-            # Filter nur Ausgabenkategorien (kein Income)
             period_data = month_sum_df[
                 (month_sum_df["year_month"] == period) &
                 (~month_sum_df["category"].isin(["Income"]))
@@ -73,49 +71,40 @@ class Visualizer:
                     total_sum = row["month_sum"].values[0]
                 else:
                     total_sum = 0
-                # An jedem Tag im Monat => total_sum
                 df_temp = pd.DataFrame({
                     "date": daily_range,
                     "category": cat,
                     "month_value": total_sum
                 })
                 area_list.append(df_temp)
-
         if area_list:
             df_area = pd.concat(area_list, ignore_index=True)
-
         else:
             df_area = pd.DataFrame(columns=["date", "category", "month_value"])
 
         # 8) Pivot => Zeilen=Datum, Spalten=Kategorie => month_value
         df_area_pivot = df_area.pivot(index="date", columns="category", values="month_value").fillna(0)
-
-        # Nur die definierten area_categories in der gewünschten Reihenfolge
         final_area_cols = [c for c in area_categories if c in df_area_pivot.columns]
         df_area_pivot = df_area_pivot[final_area_cols]
 
-        # 9) Income: ebenfalls GESAMTER Monatswert pro Tag, jetzt im gleichen Format wie die Ausgaben
+        # 9) Income: GESAMTER Monatswert pro Tag, jetzt in derselben Struktur wie die Ausgaben
         df_income_list = []
         income_data = month_sum_df[month_sum_df["category"] == "Income"]
         for period in income_data["year_month"].unique():
             start_date = pd.Timestamp(period.start_time)
             end_date = pd.Timestamp(period.end_time)
             daily_range = pd.date_range(start=start_date, end=end_date, freq="D")
-
             row = income_data[income_data["year_month"] == period]
             if not row.empty:
                 total_sum = row["month_sum"].values[0]
             else:
                 total_sum = 0
-
-            # Hier wird jetzt die gleiche Struktur wie bei den Ausgaben verwendet:
             df_temp = pd.DataFrame({
                 "date": daily_range,
                 "category": "Income",
                 "month_value": total_sum
             })
             df_income_list.append(df_temp)
-
         if df_income_list:
             df_income = pd.concat(df_income_list, ignore_index=True)
         else:
@@ -123,24 +112,35 @@ class Visualizer:
 
         # Auf gesamten Zeitraum reindexen & füllen
         full_date_range = pd.date_range(start=df["date"].min(), end=df["date"].max(), freq="D")
-        df_income = df_income.set_index("date").reindex(full_date_range).fillna(0)
+        df_income = df_income.set_index("date").reindex(full_date_range).ffill().fillna(0)
 
-        # 10) Gesamtkontostand (echter Saldo)
-        df_balance = df.copy()
-        df_balance["account_balance"] = df_balance["amount"].cumsum()
-        df_balance = df_balance.set_index("date").reindex(full_date_range).ffill().fillna(0)
+        # 1️⃣ Den initialen Kontostand holen
+        fin_connector = FinTSConnector()
+        balance_dict = fin_connector.get_balance()
+        initial_balance = sum(item["amount"] for item in balance_dict.values())
+
+        # 2️⃣ Transaktions-Daten vorbereiten
+        df["cumulative_sum"] = df["amount"].cumsum()  # Kumulativer Saldo basierend auf Transaktionen
+
+        # 3️⃣ Den täglichen Kontostand berechnen (Startwert + kumulative Summe der Transaktionen)
+        df_balance = df.set_index("date")[["cumulative_sum"]].copy()
+        df_balance.rename(columns={"cumulative_sum": "account_balance"}, inplace=True)
+        df_balance["account_balance"] += initial_balance  # Startkontostand einrechnen
+
+        # 4️⃣ Fehlende Tage auffüllen (damit jeder Tag einen Wert bekommt)
+        df_balance = df_balance.reindex(full_date_range).ffill().fillna(initial_balance)
 
         # 11) Plot erstellen
         fig = go.Figure()
 
-        # a) Ausgaben als "relative stacking" => KEINE cumsum im DataFrame
+        # a) Ausgaben als "relative stacking" (kein cumsum im DataFrame)
         for cat in df_area_pivot.columns:
             fig.add_trace(go.Scatter(
                 name=cat,
                 x=df_area_pivot.index,
                 y=df_area_pivot[cat],
                 mode="lines",
-                stackgroup="same",   # relatives Stapeln
+                stackgroup="same",
                 hoverinfo="x+y+name",
                 line=dict(width=1)
             ))
@@ -155,7 +155,7 @@ class Visualizer:
             hoverinfo="x+y+name"
         ))
 
-        # c) Gesamtkontostand als durchgezogene schwarze Linie (ohne Marker)
+        # c) Gesamtkontostand als durchgezogene Linie (schwarz, ohne Marker)
         fig.add_trace(go.Scatter(
             name="Gesamtkontostand",
             x=df_balance.index,
@@ -165,9 +165,8 @@ class Visualizer:
             hoverinfo="x+y+name"
         ))
 
-        # 12) Layout
         fig.update_layout(
-            title="📊 Expense Tracker",
+            title="📊 Monats-Gesamtwerte pro Kategorie, Income-Linie & aktueller Kontostand",
             xaxis_title="📅 Datum",
             yaxis_title="💰 Betrag (€)",
             legend_title="Kategorien",
