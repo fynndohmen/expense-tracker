@@ -2,31 +2,31 @@ from fints.client import FinTS3PinTanClient
 import os
 from dotenv import load_dotenv
 import logging
-from fints.utils import minimal_interactive_cli_bootstrap  # TAN-Support hinzufügen
+from fints.utils import minimal_interactive_cli_bootstrap  # Enable TAN support
 
-# Aktiviert detailliertes Logging für Fehlersuche
+# Enable detailed logging for debugging
 logging.basicConfig(level=logging.DEBUG)
 
-# Lade Umgebungsvariablen aus der .env-Datei
+# Load environment variables from the .env file
 load_dotenv()
 
-# Bankverbindungsdaten aus Umgebungsvariablen laden
-BANK_IDENTIFIER = os.getenv("BANK_CODE")  # BLZ der Volksbank Krefeld
-USER_ID = os.getenv("USER_ID")            # Deine FinTS-Benutzerkennung
-CUSTOMER_ID = os.getenv("CUSTOMER_ID")    # Oft gleich mit USER_ID
-PIN = os.getenv("PIN")                    # Deine FinTS-PIN
-SERVER = "https://fints2.atruvia.de/cgi-bin/hbciservlet"  # Volksbank Krefeld FinTS-Server
+# Load banking credentials from environment variables
+BANK_IDENTIFIER = os.getenv("BANK_CODE")  # Bank code (BLZ) of Volksbank Krefeld
+USER_ID = os.getenv("USER_ID")            # Your FinTS user ID
+CUSTOMER_ID = os.getenv("CUSTOMER_ID")    # Often the same as USER_ID
+PIN = os.getenv("PIN")                    # Your FinTS PIN
+SERVER = "https://fints2.atruvia.de/cgi-bin/hbciservlet"  # Volksbank Krefeld FinTS server
 
-# Produkt-ID setzen (muss von der DK registriert werden)
+# Set product ID (must be registered with DK)
 PRODUCT_ID = "VR-NetWorld Software 8.0"
 
 class FinTSConnector:
     def __init__(self):
-        """Initialisiert den FinTS-Client mit Bankdaten und aktiviert TAN-Unterstützung."""
+        """Initializes the FinTS client with banking credentials and enables TAN support."""
         if not all([BANK_IDENTIFIER, USER_ID, CUSTOMER_ID, PIN]):
-            raise ValueError("❌ Fehlende Bank-Zugangsdaten! Bitte in der .env Datei setzen.")
+            raise ValueError("❌ Missing banking credentials! Please set them in the .env file.")
 
-        # FinTS-Client initialisieren
+        # Initialize FinTS client
         self.client = FinTS3PinTanClient(
             bank_identifier=BANK_IDENTIFIER,
             user_id=USER_ID,
@@ -36,24 +36,24 @@ class FinTSConnector:
             product_id=PRODUCT_ID
         )
 
-        # TAN-Verarbeitung aktivieren
+        # Enable TAN handling
         minimal_interactive_cli_bootstrap(self.client)
 
     def get_transactions(self):
-        """Holt die letzten Transaktionen für alle SEPA-Konten."""
+        """Fetches recent transactions for all SEPA accounts."""
         try:
             with self.client:
-                # Falls PSD2 eine TAN verlangt, wird sie hier eingegeben
+                # If PSD2 requires a TAN, prompt the user
                 if self.client.init_tan_response:
-                    print(f"🔒 TAN erforderlich: {self.client.init_tan_response.challenge}")
-                    tan = input("Bitte TAN eingeben: ")
+                    print(f"🔒 TAN required: {self.client.init_tan_response.challenge}")
+                    tan = input("Please enter TAN: ")
                     self.client.send_tan(self.client.init_tan_response, tan)
 
-                # SEPA-Konten abrufen
+                # Retrieve SEPA accounts
                 accounts = self.client.get_sepa_accounts()
                 transactions = []
 
-                # Transaktionen für jedes Konto abrufen
+                # Fetch transactions for each account
                 for account in accounts:
                     statement = self.client.get_statement(account)
                     for tx in statement:
@@ -66,30 +66,29 @@ class FinTSConnector:
                 return transactions
 
         except Exception as e:
-            logging.error(f"❌ Fehler beim Abrufen der Transaktionen: {e}")
+            logging.error(f"❌ Error retrieving transactions: {e}")
             return []
 
     def get_balance(self):
         """
-        Holt den aktuellen Kontostand für alle SEPA-Konten über FinTS.
-        Gibt ein Dictionary zurück, in dem die IBAN als Schlüssel und der Saldo
-        (Betrag und Währung) als Wert enthalten sind.
+        Retrieves the current account balance for all SEPA accounts via FinTS.
+        Returns a dictionary where the IBAN is the key and the balance
+        (amount and currency) is the value.
         """
         try:
             with self.client:
-                # Falls PSD2 eine TAN verlangt, wird sie hier eingegeben
+                # If PSD2 requires a TAN, prompt the user
                 if self.client.init_tan_response:
-                    print(f"🔒 TAN erforderlich: {self.client.init_tan_response.challenge}")
-                    tan = input("Bitte TAN eingeben: ")
+                    print(f"🔒 TAN required: {self.client.init_tan_response.challenge}")
+                    tan = input("Please enter TAN: ")
                     self.client.send_tan(self.client.init_tan_response, tan)
 
                 accounts = self.client.get_sepa_accounts()
                 balances = {}
 
-                # Für jedes Konto den aktuellen Saldo abrufen
+                # Fetch the current balance for each account
                 for account in accounts:
-                    # Hier wird die Methode get_balance verwendet, falls in der Bibliothek vorhanden
-                    # (Eventuell ist der Methodenname je nach Version anders, prüfe die Dokumentation)
+                    # Use the get_balance method (check library docs for correct method name)
                     balance = self.client.get_balance(account)
                     balances[account.iban] = {
                         "amount": balance.amount,
@@ -98,24 +97,24 @@ class FinTSConnector:
                 return balances
 
         except Exception as e:
-            logging.error(f"❌ Fehler beim Abrufen des Kontostands: {e}")
+            logging.error(f"❌ Error retrieving account balance: {e}")
             return {}
 
     def test_connection(self):
-        """Testet die Verbindung zur Bank und listet verfügbare Konten auf."""
+        """Tests the connection to the bank and lists available accounts."""
         try:
             with self.client:
                 if self.client.init_tan_response:
-                    print(f"🔒 TAN erforderlich: {self.client.init_tan_response.challenge}")
-                    tan = input("Bitte TAN eingeben: ")
+                    print(f"🔒 TAN required: {self.client.init_tan_response.challenge}")
+                    tan = input("Please enter TAN: ")
                     self.client.send_tan(self.client.init_tan_response, tan)
 
                 accounts = self.client.get_sepa_accounts()
                 if accounts:
-                    print("✅ Verbindung erfolgreich! Gefundene Konten:")
+                    print("✅ Connection successful! Found accounts:")
                     for account in accounts:
                         print(f"- IBAN: {account.iban}, BIC: {account.bic}")
                 else:
-                    print("⚠ Keine Konten gefunden. Bitte Zugangsdaten überprüfen.")
+                    print("⚠ No accounts found. Please check your credentials.")
         except Exception as e:
-            logging.error(f"❌ Verbindung fehlgeschlagen: {e}")
+            logging.error(f"❌ Connection failed: {e}")
