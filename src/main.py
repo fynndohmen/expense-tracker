@@ -1,58 +1,95 @@
-from fints_connector import FinTSConnector
-from categorizer import Categorizer
-from visualizer import Visualizer
 import json
 import os
 
-# File paths
-TRANSACTIONS_FILE = "data/transactions.json"
+# =========== Original Imports (commented out) ===========
+"""
+from fints_connector import FinTSConnector
+"""
 
+from categorizer import Categorizer
+from visualizer import Visualizer
+
+
+# =========== Original Variables (commented out) ===========
+"""
+# Potential environment-based variables or references
+# (Not needed for the local test version)
+"""
+
+
+# =========== Paths for local test version ===========
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TRANSACTIONS_FILE = os.path.join(BASE_DIR, "data", "transactions.json")
+
+
+# =========== Utility Functions for local test version ===========
 
 def load_transactions():
-    """Loads transactions from the JSON file if it exists."""
+    """
+    Loads transactions from the local JSON file if it exists.
+    """
+    print(f"🔄 Using local test data from {TRANSACTIONS_FILE} ...")
     if os.path.exists(TRANSACTIONS_FILE):
-        with open(TRANSACTIONS_FILE, "r") as file:
-            return json.load(file)
-    return []
+        try:
+            with open(TRANSACTIONS_FILE, "r", encoding="utf-8") as file:
+                data = json.load(file)
+                print(f"✅ Loaded {len(data)} transactions from file.")
+                return data
+        except Exception as e:
+            print(f"❌ Could not load transactions: {e}")
+            return []
+    else:
+        print(f"⚠ File {TRANSACTIONS_FILE} not found.")
+        return []
 
 
 def save_transactions(transactions):
-    """Saves transactions, ensuring only unique transactions are stored."""
+    """
+    Saves transactions locally to the JSON file, ensuring uniqueness.
+    """
     old_transactions = load_transactions()
     all_transactions = old_transactions + transactions
-    unique_transactions = {f"{t['date']}-{t['amount']}-{t['description']}": t for t in all_transactions}
+    unique_transactions = {
+        f"{t['date']}-{t['amount']}-{t['description']}": t
+        for t in all_transactions
+    }
 
-    with open(TRANSACTIONS_FILE, "w") as file:
-        json.dump(list(unique_transactions.values()), file, indent=4)
-
-    print(f"✅ {len(unique_transactions)} unique transactions saved.")
+    try:
+        with open(TRANSACTIONS_FILE, "w", encoding="utf-8") as file:
+            json.dump(list(unique_transactions.values()), file, indent=4)
+        print(f"✅ {len(unique_transactions)} unique transactions saved to {TRANSACTIONS_FILE}")
+    except Exception as e:
+        print(f"❌ Error while saving transactions: {e}")
 
 
 def main():
-    """Runs the program to load, categorize, and visualize transactions."""
+    """
+    Main entry point of the app (local test version).
+    """
+
+    # =========== Original FinTS Code (commented out) ===========
+    """
     # fints = FinTSConnector()
-    # fints.test_connection()  # Commented out to avoid real bank connection
-    # transactions = fints.get_transactions()  # Also commented out
+    # fints.test_connection()
+    # transactions = fints.get_transactions()
+    """
 
-    # Instead, load transactions from transactions.json
+    # =========== Local Test-Loading of transactions ===========
     transactions = load_transactions()
-    print(f"🔄 Loading transactions from {TRANSACTIONS_FILE} ...")
-
     if not transactions:
         print("⚠ No transactions found or an error occurred while retrieving them!")
         return
 
-    print(f"✅ {len(transactions)} transactions successfully loaded!")
+    print(f"✅ {len(transactions)} transactions successfully loaded (local test).")
 
-    # Categorization (optional)
+    # Categorization
     categorizer = Categorizer()
-    for transaction in transactions:
-        # Skip if the transaction already has a category
-        if "category" not in transaction or not transaction["category"]:
-            transaction["category"] = categorizer.categorize_transaction(transaction)
+    for tx in transactions:
+        if "category" not in tx or not tx["category"]:
+            tx["category"] = categorizer.categorize_transaction(tx)
 
     save_transactions(transactions)
-    print("✅ Transactions successfully saved!")
+    print("✅ Transactions successfully saved locally!")
 
     # Visualization
     visualizer = Visualizer()

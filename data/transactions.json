@@ -2,25 +2,25 @@
     {
         "date": "2024-01-01",
         "amount": 1088,
-        "category": "Gehalt",
+        "category": "Income",
         "description": "Monatsgehalt"
     },
     {
         "date": "2024-01-03",
         "amount": -500,
-        "category": "Miete",
+        "category": "Rent",
         "description": "Wohnungsmiete"
     },
     {
         "date": "2024-01-10",
         "amount": -69,
-        "category": "Strom",
+        "category": "Electricity",
         "description": "Stromrechnung"
     },
     {
         "date": "2024-01-15",
         "amount": -55,
-        "category": "Festnetz",
+        "category": "Landline",
         "description": "Internet & Telefon"
     },
     {
@@ -56,25 +56,25 @@
     {
         "date": "2024-02-01",
         "amount": 1088,
-        "category": "Gehalt",
+        "category": "Income",
         "description": "Monatsgehalt"
     },
     {
         "date": "2024-02-03",
         "amount": -500,
-        "category": "Miete",
+        "category": "Rent",
         "description": "Wohnungsmiete"
     },
     {
         "date": "2024-02-10",
         "amount": -69,
-        "category": "Strom",
+        "category": "Electricity",
         "description": "Stromrechnung"
     },
     {
         "date": "2024-02-15",
         "amount": -55,
-        "category": "Festnetz",
+        "category": "Landline",
         "description": "Internet & Telefon"
     },
     {
@@ -87,7 +87,7 @@
         "date": "2024-02-14",
         "amount": -90,
         "category": "Food",
-        "description": "B\u00c3\u00a4ckerei"
+        "description": "B\u00e4ckerei"
     },
     {
         "date": "2024-02-22",
@@ -110,25 +110,25 @@
     {
         "date": "2024-03-01",
         "amount": 1088,
-        "category": "Gehalt",
+        "category": "Income",
         "description": "Monatsgehalt"
     },
     {
         "date": "2024-03-03",
         "amount": -500,
-        "category": "Miete",
+        "category": "Rent",
         "description": "Wohnungsmiete"
     },
     {
         "date": "2024-03-10",
         "amount": -69,
-        "category": "Strom",
+        "category": "Electricity",
         "description": "Stromrechnung"
     },
     {
         "date": "2024-03-15",
         "amount": -55,
-        "category": "Festnetz",
+        "category": "Landline",
         "description": "Internet & Telefon"
     },
     {
