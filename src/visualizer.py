@@ -3,6 +3,9 @@ import json
 import pandas as pd
 import plotly.graph_objects as go
 
+# NEU: ColorManager importieren
+from color_manager import ColorManager
+
 """
 from fints_connector import FinTSConnector  # Original import for real bank connections
 """
@@ -10,18 +13,11 @@ from fints_connector import FinTSConnector  # Original import for real bank conn
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRANSACTIONS_FILE = os.path.join(BASE_DIR, "data", "transactions.json")
 
-category_colors = {
-    "Rent": "#9b59b6",
-    "Electricity": "#e74c3c",
-    "Landline": "#3498db",
-    "Food": "#2ecc71",
-    "Utilities": "#f1c40f",
-    "Income": "#27ae60",
-    "Account Balance": "#000000"
-}
-
 class Visualizer:
     def __init__(self):
+        # ColorManager IMMER initialisieren, damit wir für alle Kategorien dynamische Farben haben
+        self.color_manager = ColorManager()
+
         print(f"🔎 Checking for local file: {TRANSACTIONS_FILE}")
         if os.path.exists(TRANSACTIONS_FILE):
             try:
@@ -86,7 +82,7 @@ class Visualizer:
                 })
                 area_list.append(df_temp)
 
-        df_area = pd.concat(area_list, ignore_index=True) if area_list else pd.DataFrame(columns=["date","category","month_value"])
+        df_area = pd.concat(area_list, ignore_index=True) if area_list else pd.DataFrame(columns=["date", "category", "month_value"])
         df_area_pivot = df_area.pivot(index="date", columns="category", values="month_value").fillna(0)
         final_area_cols = [c for c in area_categories if c in df_area_pivot.columns]
         df_area_pivot = df_area_pivot[final_area_cols]
@@ -106,7 +102,7 @@ class Visualizer:
                 "month_value": total_sum
             })
             df_income_list.append(df_temp)
-        df_income = pd.concat(df_income_list, ignore_index=True) if df_income_list else pd.DataFrame(columns=["date","category","month_value"])
+        df_income = pd.concat(df_income_list, ignore_index=True) if df_income_list else pd.DataFrame(columns=["date", "category", "month_value"])
 
         full_date_range = pd.date_range(start=df["date"].min(), end=df["date"].max(), freq="D")
         if not df_income.empty:
@@ -125,7 +121,7 @@ class Visualizer:
 
         # Stacked area
         for cat in df_area_pivot.columns:
-            color_for_cat = category_colors.get(cat, None)
+            color_for_cat = self.color_manager.get_color_for_category(cat)
             fig.add_trace(go.Scatter(
                 name=cat,
                 x=df_area_pivot.index,
@@ -137,7 +133,7 @@ class Visualizer:
             ))
 
         # Income line
-        color_for_income = category_colors.get("Income", "green")
+        color_for_income = self.color_manager.get_color_for_category("Income")
         if not df_income.empty:
             fig.add_trace(go.Scatter(
                 name="Income",
@@ -149,7 +145,7 @@ class Visualizer:
             ))
 
         # Balance line
-        color_for_balance = category_colors.get("Account Balance", "black")
+        color_for_balance = self.color_manager.get_color_for_category("Account Balance")
         fig.add_trace(go.Scatter(
             name="Account Balance",
             x=df_balance.index,
@@ -161,56 +157,34 @@ class Visualizer:
 
         # ==============================
         # Additional lines with markers
-        # to keep line at last trans value
         # ==============================
         line_categories = ["Food", "Utilities"]  # which categories have multiple transactions
         category_order_map = {cat: i for i, cat in enumerate(final_area_cols)}
 
         df_multi = df[df["category"].isin(line_categories)].copy()
         if not df_multi.empty:
-            # sort by category & date
             df_multi["year_month"] = df_multi["date"].dt.to_period("M")
             df_multi = df_multi.sort_values(["category", "year_month", "date"])
 
-            # Wir erstellen für jeden Monat & Kategorie
-            # ein DataFrame vom 1..letzter Tag, forward fill
             all_line_frames = []
             for (cat, period), group in df_multi.groupby(["category","year_month"]):
-                # 1) Erstelle daily_range für den Monat
                 start_date = pd.Timestamp(period.start_time)
                 end_date = pd.Timestamp(period.end_time)
                 daily_range = pd.date_range(start=start_date, end=end_date, freq="D")
 
-                # 2) Summiere die Beträge an jedem realen Transaktionstag
-                #    + cumsum => so haben wir am Tag einer TX => +X
-                #    Nach der letzten TX => bleibt Wert
                 group = group.copy()
                 group["expense_val"] = group["amount_abs"]
-                # build a day-based DF
-                # so each trans is a row => we might pivot them or reindex
-                # => we do sum by date if multiple trans same date
                 daily_sum = group.groupby("date", as_index=False)["expense_val"].sum()
-                # reindex
                 daily_sum = daily_sum.set_index("date").reindex(daily_range).fillna(0).reset_index()
-                daily_sum.rename(columns={"index":"date"}, inplace=True)
-
-                # cumsum
+                daily_sum.rename(columns={"index": "date"}, inplace=True)
                 daily_sum["cum_val"] = daily_sum["expense_val"].cumsum()
 
-                # "is_real" to mark actual transactions -> we do a merge
-                # so we can identify if that date had a real row
+                # "is_real" to mark actual transactions
                 group["is_real"] = True
-                # do a left merge so we get the description & amount for each transaction day
-                # but watch out if multiple TX in same day => we can't store them all easily
-                # For simplicity, store the sum & "n transactions" or so.
-                # We'll store the sum as "transaction" + no desc or so
-                # or we keep just the first?
-                # We'll do a simple approach: if there's multiple TX same day, we only show the first's desc
                 group_first_desc = group.drop_duplicates("date", keep="first")[["date","description"]]
                 daily_sum = daily_sum.merge(group_first_desc, on="date", how="left")
                 daily_sum["is_real"] = ~daily_sum["description"].isna()
 
-                # offset from stacked area
                 def get_stack_offset(d_row):
                     dday = d_row["date"]
                     if cat in category_order_map:
@@ -229,23 +203,15 @@ class Visualizer:
 
             df_lines = pd.concat(all_line_frames, ignore_index=True) if all_line_frames else pd.DataFrame()
 
-            # Now add a single trace per category => lines+markers
             for cat in line_categories:
                 sub_line = df_lines[df_lines["category"] == cat].copy()
                 if sub_line.empty:
                     continue
 
-                line_color = category_colors.get(cat, "#333333")
+                line_color = self.color_manager.get_color_for_category(cat)
 
-                # For hover, we want to show the transaction amount (if is_real?), the desc, the cumsum
-                # We'll store them in customdata
-                # amount => if is_real => difference of cumsum from previous day? or the "expense_val" that day?
-                # We'll do sub_line["expense_val"] for that day. It's the sum of that day's transactions
-                # But if is_real =False => 0
-                # For multiple TX in same day, we stored the sum => ok
                 sub_line["tx_amount"] = sub_line["expense_val"].where(sub_line["is_real"], 0)
                 sub_line["desc"] = sub_line["description"].fillna("")
-                # Marker size => 6 if real, 0 if filler
                 sub_line["marker_size"] = sub_line["is_real"].map({True: 6, False: 0})
 
                 fig.add_trace(go.Scatter(
