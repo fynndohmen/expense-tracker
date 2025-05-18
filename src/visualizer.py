@@ -2,20 +2,14 @@ import os
 import json
 import pandas as pd
 import plotly.graph_objects as go
-
-# NEU: ColorManager importieren
 from color_manager import ColorManager
-
-"""
-from fints_connector import FinTSConnector  # Original import for real bank connections
-"""
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRANSACTIONS_FILE = os.path.join(BASE_DIR, "data", "transactions.json")
 
+
 class Visualizer:
     def __init__(self):
-        # ColorManager IMMER initialisieren, damit wir für alle Kategorien dynamische Farben haben
         self.color_manager = ColorManager()
 
         print(f"🔎 Checking for local file: {TRANSACTIONS_FILE}")
@@ -52,7 +46,7 @@ class Visualizer:
         income_cats = {"Salary", "Bonus", "Revenue"}
         df["category"] = df["category"].apply(lambda c: "Income" if c in income_cats else c)
 
-        # 3) Stacked area categories
+        # 3) Stacked area categories (nur Expense-Kategorien)
         area_categories = ["Rent", "Electricity", "Landline", "Food", "Utilities"]
 
         # Summation for monthly stacked area
@@ -116,7 +110,6 @@ class Visualizer:
         df_balance["account_balance"] += initial_balance
         df_balance = df_balance.reindex(full_date_range).ffill().fillna(initial_balance)
 
-        # Plot
         fig = go.Figure()
 
         # Stacked area
@@ -129,10 +122,9 @@ class Visualizer:
                 mode="lines",
                 stackgroup="same",
                 hoverinfo="x+y+name",
-                line=dict(width=1, color=color_for_cat),
+                line=dict(width=0, color=color_for_cat),
             ))
 
-        # Income line
         color_for_income = self.color_manager.get_color_for_category("Income")
         if not df_income.empty:
             fig.add_trace(go.Scatter(
@@ -144,21 +136,19 @@ class Visualizer:
                 hoverinfo="x+y+name"
             ))
 
-        # Balance line
         color_for_balance = self.color_manager.get_color_for_category("Account Balance")
         fig.add_trace(go.Scatter(
             name="Account Balance",
             x=df_balance.index,
             y=df_balance["account_balance"],
             mode="lines",
-            line=dict(width=2, color=color_for_balance),
+            line=dict(width=1, color=color_for_balance),
             hoverinfo="x+y+name"
         ))
 
-        # ==============================
-        # Additional lines with markers
-        # ==============================
-        line_categories = ["Food", "Utilities"]  # which categories have multiple transactions
+        # Cumsum-Linien für alle vorhandenen Expense-Kategorien
+        line_categories = final_area_cols  # statt nur ["Food", "Utilities"]
+
         category_order_map = {cat: i for i, cat in enumerate(final_area_cols)}
 
         df_multi = df[df["category"].isin(line_categories)].copy()
@@ -167,7 +157,7 @@ class Visualizer:
             df_multi = df_multi.sort_values(["category", "year_month", "date"])
 
             all_line_frames = []
-            for (cat, period), group in df_multi.groupby(["category","year_month"]):
+            for (cat, period), group in df_multi.groupby(["category", "year_month"]):
                 start_date = pd.Timestamp(period.start_time)
                 end_date = pd.Timestamp(period.end_time)
                 daily_range = pd.date_range(start=start_date, end=end_date, freq="D")
@@ -179,9 +169,8 @@ class Visualizer:
                 daily_sum.rename(columns={"index": "date"}, inplace=True)
                 daily_sum["cum_val"] = daily_sum["expense_val"].cumsum()
 
-                # "is_real" to mark actual transactions
                 group["is_real"] = True
-                group_first_desc = group.drop_duplicates("date", keep="first")[["date","description"]]
+                group_first_desc = group.drop_duplicates("date", keep="first")[["date", "description"]]
                 daily_sum = daily_sum.merge(group_first_desc, on="date", how="left")
                 daily_sum["is_real"] = ~daily_sum["description"].isna()
 
@@ -209,7 +198,6 @@ class Visualizer:
                     continue
 
                 line_color = self.color_manager.get_color_for_category(cat)
-
                 sub_line["tx_amount"] = sub_line["expense_val"].where(sub_line["is_real"], 0)
                 sub_line["desc"] = sub_line["description"].fillna("")
                 sub_line["marker_size"] = sub_line["is_real"].map({True: 6, False: 0})
@@ -219,9 +207,13 @@ class Visualizer:
                     x=sub_line["date"],
                     y=sub_line["line_y"],
                     mode="lines+markers",
-                    line=dict(width=2, color=line_color),
-                    marker=dict(size=sub_line["marker_size"], color=line_color),
-                    customdata=sub_line[["tx_amount","desc","cum_val"]],
+                    line=dict(width=1, color=line_color),
+                    marker=dict(
+                        size=sub_line["marker_size"],
+                        color="black",
+                        symbol="diamond"
+                    ),
+                    customdata=sub_line[["tx_amount", "desc", "cum_val"]],
                     hovertemplate=(
                         "Date: %{x}<br>"
                         + cat + " transaction: %{customdata[0]} €<br>"

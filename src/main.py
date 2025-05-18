@@ -9,18 +9,15 @@ from fints_connector import FinTSConnector
 from categorizer import Categorizer
 from visualizer import Visualizer
 
-
 # =========== Original Variables (commented out) ===========
 """
 # Potential environment-based variables or references
 # (Not needed for the local test version)
 """
 
-
 # =========== Paths for local test version ===========
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRANSACTIONS_FILE = os.path.join(BASE_DIR, "data", "transactions.json")
-
 
 # =========== Utility Functions for local test version ===========
 
@@ -42,7 +39,6 @@ def load_transactions():
         print(f"⚠ File {TRANSACTIONS_FILE} not found.")
         return []
 
-
 def save_transactions(transactions):
     """
     Saves transactions locally to the JSON file, ensuring uniqueness.
@@ -60,7 +56,6 @@ def save_transactions(transactions):
         print(f"✅ {len(unique_transactions)} unique transactions saved to {TRANSACTIONS_FILE}")
     except Exception as e:
         print(f"❌ Error while saving transactions: {e}")
-
 
 def main():
     """
@@ -88,13 +83,17 @@ def main():
         if "category" not in tx or not tx["category"]:
             tx["category"] = categorizer.categorize_transaction(tx)
 
+        # Abfrage: Falls "fixed" fehlt, Nachfragen
+        if "fixed" not in tx:
+            ans = input(f"Is '{tx['description']}' (Category: {tx['category']}) a fixed cost? (y/n): ").lower().strip()
+            tx["fixed"] = (ans == "y")
+
     save_transactions(transactions)
     print("✅ Transactions successfully saved locally!")
 
     # Visualization
     visualizer = Visualizer()
     visualizer.generate_chart()
-
 
 if __name__ == "__main__":
     main()
