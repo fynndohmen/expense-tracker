@@ -1,31 +1,21 @@
 import json
 import os
-
-# =========== Original Imports (commented out) ===========
-"""
-from fints_connector import FinTSConnector
-"""
+from datetime import date
+# ===== Live-FinTS Imports (uncomment for production) =====
+# from fints_connector import FinTSConnector
 
 from categorizer import Categorizer
 from visualizer import Visualizer
 
-# =========== Original Variables (commented out) ===========
-"""
-# Potential environment-based variables or references
-# (Not needed for the local test version)
-"""
-
-# =========== Paths for local test version ===========
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRANSACTIONS_FILE = os.path.join(BASE_DIR, "data", "transactions.json")
 
-# =========== Utility Functions for local test version ===========
 
 def load_transactions():
     """
     Loads transactions from the local JSON file if it exists.
     """
-    print(f"🔄 Using local test data from {TRANSACTIONS_FILE} ...")
+    print(f"🔄 Using local data from {TRANSACTIONS_FILE} ...")
     if os.path.exists(TRANSACTIONS_FILE):
         try:
             with open(TRANSACTIONS_FILE, "r", encoding="utf-8") as file:
@@ -38,6 +28,7 @@ def load_transactions():
     else:
         print(f"⚠ File {TRANSACTIONS_FILE} not found.")
         return []
+
 
 def save_transactions(transactions):
     """
@@ -57,19 +48,37 @@ def save_transactions(transactions):
     except Exception as e:
         print(f"❌ Error while saving transactions: {e}")
 
+
 def main():
     """
-    Main entry point of the app (local test version).
+    Main entry point of the app.
+    Toggle between Live-FinTS mode (uncomment) and Local Test mode.
     """
 
-    # =========== Original FinTS Code (commented out) ===========
+    # ===== Live-FinTS Mode (uncomment to activate) =====
     """
-    # fints = FinTSConnector()
-    # fints.test_connection()
-    # transactions = fints.get_transactions()
+    fints = FinTSConnector()
+    fints.test_connection()
+
+    # Ermittle ältestes Datum aus der lokalen Datei, um lückenlos nachzuladen
+    existing = load_transactions()
+    if existing:
+        oldest_iso = min(tx["date"] for tx in existing)
+        oldest_date = date.fromisoformat(oldest_iso)
+        print(f"⏳ Fetching transactions since {oldest_date}")
+        transactions = fints.get_transactions(start_date=oldest_date)
+    else:
+        print("⏳ No existing data, fetching full history")
+        transactions = fints.get_transactions()
+
+    # Aktuellen Kontostand holen
+    balance_dict = fints.get_balance()
+    print("🏦 Current balances by IBAN:")
+    for iban, info in balance_dict.items():
+        print(f"  • {iban}: {info['amount']} {info['currency']}")
     """
 
-    # =========== Local Test-Loading of transactions ===========
+    # ===== Local Test Mode =====
     transactions = load_transactions()
     if not transactions:
         print("⚠ No transactions found or an error occurred while retrieving them!")
@@ -77,23 +86,26 @@ def main():
 
     print(f"✅ {len(transactions)} transactions successfully loaded (local test).")
 
-    # Categorization
+    # ===== Categorization =====
     categorizer = Categorizer()
     for tx in transactions:
         if "category" not in tx or not tx["category"]:
             tx["category"] = categorizer.categorize_transaction(tx)
 
-        # Abfrage: Falls "fixed" fehlt, Nachfragen
+        # Frage nach Fixkosten-Flag, wenn noch nicht gesetzt
         if "fixed" not in tx:
-            ans = input(f"Is '{tx['description']}' (Category: {tx['category']}) a fixed cost? (y/n): ").lower().strip()
+            ans = input(
+                f"Is '{tx['description']}' (Category: {tx['category']}) a fixed cost? (y/n): "
+            ).lower().strip()
             tx["fixed"] = (ans == "y")
 
     save_transactions(transactions)
     print("✅ Transactions successfully saved locally!")
 
-    # Visualization
+    # ===== Visualization =====
     visualizer = Visualizer()
     visualizer.generate_chart()
+
 
 if __name__ == "__main__":
     main()

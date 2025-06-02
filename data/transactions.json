@@ -105,6 +105,13 @@
         "fixed": false
     },
     {
+        "date": "2024-02-14",
+        "amount": -50,
+        "category": "Food",
+        "description": "B\u00e4ckerei",
+        "fixed": false
+    },
+    {
         "date": "2024-02-22",
         "amount": -85,
         "category": "Food",
