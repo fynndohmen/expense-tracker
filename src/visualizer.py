@@ -29,43 +29,44 @@ class Visualizer:
 
     def generate_chart(self):
         """
-        Erzeugt:
-         - Ein gestapeltes Area-Chart aller Ausgaben (fixe unten, variable oben),
-         - Eine separate Income-Linie (Monatswert konstant pro Tag),
-         - Eine Balance-Linie (static; zum Test),
-         - Pro Tag/Kategorie genau einen Marker mit allen Transaktionen im Tooltip
-           (dabei erscheint "Transactions:..." nur, wenn zum Datum tatsächlich Buchungen vorliegen).
+        Generates:
+         - A stacked area chart of all expenses (fixed at bottom, variable on top),
+         - A separate income line (monthly total constant per day),
+         - A balance line (static for testing),
+         - One marker per day/category showing all transactions in the tooltip
+           (the "Transactions:..." section appears only on days with actual entries).
         """
         if not self.transactions:
             print("⚠ No transaction data available. Chart will not be created.")
             return
 
-        # --- 1) Basis-DF vorbereiten ---
+        # --- 1) Prepare base DataFrame ---
         df = pd.DataFrame(self.transactions)
-        df["date"] = pd.to_datetime(df["date"])
+        df["date"] = pd.to_datetime(df["date"])  # Convert the date column to pandas datetime objects
         df = df.sort_values("date")
         print(f"ℹ DataFrame has {len(df)} rows.")
 
-        # Negative Beträge als positiv für Ausgaben
+        # Convert negative amounts to positive for expense calculations
         df["amount_abs"] = df["amount"].abs()
 
-        # Income-Kategorien zusammenfassen
+        # Consolidate income categories into a single "Income" label
         income_cats = {"Salary", "Bonus", "Revenue"}
         df["category"] = df["category"].apply(lambda c: "Income" if c in income_cats else c)
 
-        # Reihenfolge der Ausgaben (unten → oben)
+        # Define expense categories in stacking order (bottom → top)
         area_categories = ["Rent", "Electricity", "Landline", "Food", "Utilities"]
 
-        # Monatliche Gesamtsumme je Kategorie
+        # Compute the monthly total per category
         df["year_month"] = df["date"].dt.to_period("M")
         month_sum_df = df.groupby(["year_month", "category"], as_index=False).agg(
             month_sum=("amount_abs", "sum")
         )
+        # with as_index=False, "year_month" and "category" remain columns instead of becoming the index
 
-        # Vollständige Tagesreihe (vom frühesten bis zum spätesten Datum)
+        # Create a full date range from the earliest to the latest transaction date
         full_date_range = pd.date_range(start=df["date"].min(), end=df["date"].max(), freq="D")
 
-        # --- 2) Gestapeltes Area-Chart der Ausgaben ---
+        # --- 2) stacked area-chart of the output ---
         area_list = []
         for period in month_sum_df["year_month"].unique():
             start = pd.Timestamp(period.start_time)
@@ -78,7 +79,6 @@ class Visualizer:
             ]
 
             for cat in area_categories:
-                # Falls diese Kategorie in diesem Monat existiert, holen wir den Wert; sonst 0
                 val = data.loc[data["category"] == cat, "month_sum"]
                 total = int(val.iloc[0]) if not val.empty else 0
 
@@ -93,11 +93,12 @@ class Visualizer:
             if area_list
             else pd.DataFrame(columns=["date", "category", "month_value"])
         )
+
         df_area = df_area.pivot(index="date", columns="category", values="month_value").fillna(0)
         # Nur die in area_categories vorkommenden Spalten in der richtigen Reihenfolge belassen
         df_area = df_area[[c for c in area_categories if c in df_area.columns]]
 
-        # --- 3) Income-Linie (Monatswert konstant pro Tag) ---
+        # --- 3) Income-Line (monthvalue constant for days) ---
         income_list = []
         inc_data = month_sum_df[month_sum_df["category"] == "Income"]
         for period in inc_data["year_month"].unique():
@@ -119,51 +120,46 @@ class Visualizer:
             if income_list
             else pd.DataFrame(columns=["date", "category", "month_value"])
         )
-        # Index-Setzen und Duplikate im Index entfernen, bevor reindex:
+        # set index and remove duplicates, before reindex:
         df_income = df_income.set_index("date")
         df_income = df_income[~df_income.index.duplicated(keep="last")]
-        df_income = df_income.reindex(full_date_range).ffill().fillna(0)
+        df_income = df_income.reindex(full_date_range).fillna(0)
 
-        # --- 4) Balance-Linie (static; zum Test) ---
+        # --- 4) Balance-Line (static; for testing) ---
         initial_balance = 1000.0
         df["cumulative_sum"] = df["amount"].cumsum()
         df_balance = (
             df.set_index("date")[["cumulative_sum"]]
               .rename(columns={"cumulative_sum": "account_balance"})
         )
-        # Duplikate am gleichen Datum entfernen, bevor reindex:
+
         df_balance = df_balance[~df_balance.index.duplicated(keep="last")]
-        # Startsaldo hinzurechnen
         df_balance["account_balance"] += initial_balance
-        # Fehlende Tage auffüllen
         df_balance = df_balance.reindex(full_date_range).ffill().fillna(initial_balance)
 
-        # Live-Balance via FinTS abrufen:
+        # retrieve Live-Balance via FinTS:
         '''
         fin = FinTSConnector()
         bal_dict = fin.get_balance()  # {iban: {"amount": X, "currency": Y}, …}
         initial_balance = sum(item["amount"] for item in bal_dict.values())
-                # # kumulative Transaktionssumme ermitteln
+                # calculate cumulative transaction sum
         df["cumulative_sum"] = df["amount"].cumsum()
         
-        # echten Kontostand berechnen (Startsaldo + Transaktionen)
+        # calculate real balance (startingbalance + transactions)
         df_balance = (
             df
             .set_index("date")[["cumulative_sum"]]
             .rename(columns={"cumulative_sum": "account_balance"})
         )
-        # Duplikate am selben Tag entfernen
+
         df_balance = df_balance[~df_balance.index.duplicated(keep="last")]
-        # Startsaldo addieren
         df_balance["account_balance"] += initial_balance
-        # Fehlende Tage auffüllen
         df_balance = df_balance.reindex(full_date_range).ffill().fillna(initial_balance)
         '''
 
-        # --- 5) Plot aufbauen ---
+        # --- 5) build Plot  ---
         fig = go.Figure()
-
-        # a) Ausgaben als gestapeltes Area (hoverinfo für Flächen ausblenden)
+        # a) output as stacked area (not show hoverinfo for areas)
         for cat in df_area.columns:
             fig.add_trace(go.Scatter(
                 name=cat,
@@ -172,11 +168,11 @@ class Visualizer:
                 mode="lines",
                 stackgroup="same",
                 line=dict(width=0, color=self.color_manager.get_color_for_category(cat)),
-                hoverinfo="none",  # <-- Hier wird kein Hover-Text für die Flächen angezeigt
+                hoverinfo="none",
                 showlegend=False
             ))
 
-        # b) Income-Linie
+        # b) Income-Line
         fig.add_trace(go.Scatter(
             name="Income",
             x=df_income.index,
@@ -186,7 +182,7 @@ class Visualizer:
             hoverinfo="x+y+name"
         ))
 
-        # c) Balance-Linie
+        # c) Balance-Line
         fig.add_trace(go.Scatter(
             name="Account Balance",
             x=df_balance.index,
@@ -196,15 +192,16 @@ class Visualizer:
             hoverinfo="x+y+name"
         ))
 
-        # --- 6) Daily cumsum-Linien mit Marker & allen Transaktionen im Tooltip ---
+        # --- 6) Daily cumsum-Lines with markers & all transactions in the tooltip ---
         df_multi = df[df["category"].isin(area_categories)].copy()
         if not df_multi.empty:
             df_multi["year_month"] = df_multi["date"].dt.to_period("M")
             df_multi = df_multi.sort_values(["category", "year_month", "date"])
             order_map = {cat: i for i, cat in enumerate(area_categories)}
-            all_lines = []
 
+            all_lines = []
             for (cat, period), grp in df_multi.groupby(["category", "year_month"]):
+            # (cat, period), grp are key and value in df_multi
                 start = pd.Timestamp(period.start_time)
                 end   = pd.Timestamp(period.end_time)
                 days  = pd.date_range(start=start, end=end, freq="D")
@@ -212,7 +209,7 @@ class Visualizer:
                 grp = grp.copy()
                 grp["expense_val"] = grp["amount_abs"]
 
-                # 6.1) Tageswerte summieren
+                # 6.1) sum daily values
                 daily = grp.groupby("date", as_index=False)["expense_val"].sum()
                 daily = (
                     daily
@@ -224,7 +221,7 @@ class Visualizer:
                 )
                 daily["cum_val"] = daily["expense_val"].cumsum()
 
-                # 6.2) Alle TX-Details pro Tag sammeln (inkl. Präfix "Transactions:<br>")
+                # 6.2) collect all TX-Details per day (incl. Präfix "Transactions:<br>")
                 tx_det = (
                     grp.groupby("date")
                        .apply(
@@ -234,17 +231,32 @@ class Visualizer:
                        )
                        .reset_index(name="tx_details")
                 )
-                tx_det["tx_details"] = tx_det["tx_details"].fillna("")  # fehlende Tage → leerer String
+                tx_det["tx_details"] = tx_det["tx_details"].fillna("")  # missing days -> empty string
 
                 daily = daily.merge(tx_det, on="date", how="left")
-                daily["tx_details"] = daily["tx_details"].fillna("")  # NaN → leerer String
+                daily["tx_details"] = daily["tx_details"].fillna("")  # NaN → empty string
                 daily["marker_size"] = daily["tx_details"].apply(lambda txt: 6 if txt else 0)
 
-                # 6.3) Stapel-Offset berechnen (damit Linie oberhalb des Area-Charts gezeichnet wird)
+                # 6.3) calculate stack-offset (so lines are displayed above area chart)
                 def offset(r):
+                    # 'r' is a pandas.Series representing one row of the 'daily' DataFrame.
+                    # It contains fields such as the date (r["date"]) and the cumulative expense value (r["cum_val"]).
+
+                    # 1) Build the list of categories that lie **below** the current category 'cat' in the stack.
+                    #    'order_map' maps each category to its stacking order index
+                    #    (e.g. 0 = bottom, 1 = next, etc.).
+                    #    Example: if cat="Food" and order_map["Food"]=3, then
+                    #    below = area_categories[:3] == ["Rent","Electricity","Landline"].
                     below = area_categories[: order_map[cat]]
+
+                    # 2) If there are any 'below' categories, look up in the pivot table 'df_area'
+                    #    at the row for r["date"] the values for all these 'below' categories,
+                    #    then sum them. This yields the total stacked height **below** 'cat' on that date.
+                    #    If 'below' is empty (i.e. 'cat' is the bottommost category), return 0.
                     return df_area.loc[r["date"], below].sum() if below else 0
 
+                    # 3) Apply the 'offset' function to each row of 'daily' (axis=1 means row-wise).
+                    #    The result is a sequence of offset values, which we store in the new column "offset".
                 daily["offset"] = daily.apply(offset, axis=1)
                 daily["line_y"] = daily["offset"] + daily["cum_val"]
                 daily["category"] = cat
@@ -264,7 +276,7 @@ class Visualizer:
                     y=sub["line_y"],
                     mode="lines+markers",
                     line=dict(width=1, color=self.color_manager.get_color_for_category(cat)),
-                    marker=dict(size=sub["marker_size"], color="black", symbol="diamond"),
+                    marker=dict(size=sub["marker_size"], color="yellow", symbol="diamond"),
                     customdata=sub[["cum_val", "tx_details"]],
                     hovertemplate=(
                         "Date: %{x}<br>"
