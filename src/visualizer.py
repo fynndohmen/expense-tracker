@@ -6,6 +6,20 @@ from color_manager import ColorManager
 from fints_connector import FinTSConnector
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+CATEGORY_ORDER_FILE = os.path.join(DATA_DIR, "category_order.json")
+
+
+def load_area_categories():
+    try:
+        with open(CATEGORY_ORDER_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("fixed", []) + data.get("variable", [])
+    except Exception:
+        return []  # keine Kategorien -> evtl. nur Balance/Income plotten
+
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRANSACTIONS_FILE = os.path.join(BASE_DIR, "data", "transactions.json")
 
 
@@ -54,7 +68,9 @@ class Visualizer:
         df["category"] = df["category"].apply(lambda c: "Income" if c in income_cats else c)
 
         # Define expense categories in stacking order (bottom → top)
-        area_categories = ["Rent", "Electricity", "Landline", "Food", "Utilities"]
+        area_categories = load_area_categories()
+        if not area_categories:
+            print("ℹ No area categories defined. Skipping stacked area plot.")
 
         # Compute the monthly total per category
         df["year_month"] = df["date"].dt.to_period("M")

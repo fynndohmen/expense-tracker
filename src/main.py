@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+import sys
 import json
 import os
 from datetime import date
@@ -6,74 +8,97 @@ from datetime import date
 
 from categorizer import Categorizer
 from visualizer import Visualizer
+from category_manager import (
+    run_category_manager,
+    load_category_order,
+    discover_categories_from_transactions
+)
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TRANSACTIONS_FILE = os.path.join(BASE_DIR, "data", "transactions.json")
+# --------------------------------------------------------------------
+# Paths / Config
+# --------------------------------------------------------------------
+BASE_DIR          = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR          = os.path.join(BASE_DIR, "data")
+TRANSACTIONS_FILE = os.path.join(DATA_DIR, "transactions.json")
+ORDER_FILE        = os.path.join(DATA_DIR, "category_order.json")
 
+# --------------------------------------------------------------------
+# Auto-launch Category Manager if no order file / lists empty / new cats
+# --------------------------------------------------------------------
+fixed, variable, unassigned = load_category_order()
+known       = set(fixed) | set(variable) | set(unassigned)
+discovered  = discover_categories_from_transactions()
+missing     = [c for c in discovered if c not in known]
 
+need_manager = (
+    not os.path.exists(ORDER_FILE) or
+    (not fixed and not variable) or
+    bool(missing)
+)
+
+if need_manager:
+    print("🛠 Opening Category Manager to define/sort your categories…")
+    run_category_manager()
+    fixed, variable, unassigned = load_category_order()
+
+# --------------------------------------------------------------------
+# Helpers for transactions.json
+# --------------------------------------------------------------------
 def load_transactions():
     """
-    Loads transactions from the local JSON file if it exists.
+    Load transactions from local JSON file if it exists.
     """
-    print(f"🔄 Using local data from {TRANSACTIONS_FILE} ...")
+    print(f"🔄 Loading transactions from {TRANSACTIONS_FILE}…")
     if os.path.exists(TRANSACTIONS_FILE):
         try:
-            with open(TRANSACTIONS_FILE, "r", encoding="utf-8") as file:
-                data = json.load(file)
-                print(f"✅ Loaded {len(data)} transactions from file.")
+            with open(TRANSACTIONS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                print(f"✅ Loaded {len(data)} transactions.")
                 return data
         except Exception as e:
             print(f"❌ Could not load transactions: {e}")
-            return []
     else:
-        print(f"⚠ File {TRANSACTIONS_FILE} not found.")
-        return []
-
+        print(f"⚠ File not found: {TRANSACTIONS_FILE}")
+    return []
 
 def save_transactions(transactions):
     """
-    Saves transactions locally to the JSON file, ensuring uniqueness.
+    Save transactions locally, ensuring uniqueness by date-amount-description key.
     """
-    old_transactions = load_transactions()
-    all_transactions = old_transactions + transactions
-    unique_transactions = {
+    old = load_transactions()
+    combined = old + transactions
+    uniq = {
         f"{t['date']}-{t['amount']}-{t['description']}": t
-        for t in all_transactions
+        for t in combined
     }
-
     try:
-        with open(TRANSACTIONS_FILE, "w", encoding="utf-8") as file:
-            json.dump(list(unique_transactions.values()), file, indent=4)
-        print(f"✅ {len(unique_transactions)} unique transactions saved to {TRANSACTIONS_FILE}")
+        with open(TRANSACTIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(list(uniq.values()), f, indent=4)
+        print(f"✅ {len(uniq)} unique transactions saved.")
     except Exception as e:
         print(f"❌ Error while saving transactions: {e}")
 
-
+# --------------------------------------------------------------------
+# Main application logic
+# --------------------------------------------------------------------
 def main():
-    """
-    Main entry point of the app.
-    Toggle between Live-FinTS mode (uncomment) and Local Test mode.
-    """
-
     # ===== Live-FinTS Mode (uncomment to activate) =====
     """
     fints = FinTSConnector()
     fints.test_connection()
 
-    # Ermittle ältestes Datum aus der lokalen Datei, um lückenlos nachzuladen
     existing = load_transactions()
     if existing:
         oldest_iso = min(tx["date"] for tx in existing)
         oldest_date = date.fromisoformat(oldest_iso)
-        print(f"⏳ Fetching transactions since {oldest_date}")
+        print(f"⏳ Fetching since {oldest_date}")
         transactions = fints.get_transactions(start_date=oldest_date)
     else:
-        print("⏳ No existing data, fetching full history")
+        print("⏳ Fetching full history")
         transactions = fints.get_transactions()
 
-    # Aktuellen Kontostand holen
     balance_dict = fints.get_balance()
-    print("🏦 Current balances by IBAN:")
+    print("🏦 Current balances:")
     for iban, info in balance_dict.items():
         print(f"  • {iban}: {info['amount']} {info['currency']}")
     """
@@ -81,31 +106,30 @@ def main():
     # ===== Local Test Mode =====
     transactions = load_transactions()
     if not transactions:
-        print("⚠ No transactions found or an error occurred while retrieving them!")
+        print("⚠ No transactions available. Exiting.")
         return
 
-    print(f"✅ {len(transactions)} transactions successfully loaded (local test).")
+    print(f"✅ {len(transactions)} transactions loaded (local).")
 
     # ===== Categorization =====
     categorizer = Categorizer()
     for tx in transactions:
-        if "category" not in tx or not tx["category"]:
+        if not tx.get("category"):
             tx["category"] = categorizer.categorize_transaction(tx)
-
-        # Frage nach Fixkosten-Flag, wenn noch nicht gesetzt
-        if "fixed" not in tx:
-            ans = input(
-                f"Is '{tx['description']}' (Category: {tx['category']}) a fixed cost? (y/n): "
-            ).lower().strip()
-            tx["fixed"] = (ans == "y")
+        # no more "fixed" flag prompting here
 
     save_transactions(transactions)
-    print("✅ Transactions successfully saved locally!")
 
     # ===== Visualization =====
-    visualizer = Visualizer()
-    visualizer.generate_chart()
+    viz = Visualizer()
+    viz.generate_chart()
 
-
+# --------------------------------------------------------------------
+# CLI Entry Point
+# --------------------------------------------------------------------
 if __name__ == "__main__":
-    main()
+    # manual: python src/main.py cm  → opens Category Manager
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "cm":
+        run_category_manager()
+    else:
+        main()

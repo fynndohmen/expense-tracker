@@ -16,39 +16,26 @@ class Categorizer:
     def categorize_transaction(self, transaction):
         """
         Ask the user to categorize a transaction if it is not already categorized.
-        Also ask if it is a 'fixed cost' (z. B. Miete, Strom, etc.).
         """
         description = transaction["description"]
 
-        # Prüfen, ob wir bereits einen Eintrag in categories.json haben
-        existing_entry = self.categories.get(description)
-        if existing_entry:
-            # Falls es noch der alte String-Stil ist (z. B. "Food"),
-            # geben wir einfach den String zurück.
-            # Falls es schon ein Dict ist, extrahieren wir das "category"-Feld.
-            if isinstance(existing_entry, dict):
-                return existing_entry["category"]
-            else:
-                return existing_entry
+        # If we've seen this description before, return its category
+        if description in self.categories:
+            return self.categories[description]
 
-        # Wenn wir hier sind, ist die Transaktion neu und noch nicht kategorisiert
+        # Otherwise prompt the user for a category
         print(f"New transaction detected: {description} ({transaction['amount']}€)")
-        cat_input = input("Enter category for this transaction: ").strip()
+        category = input("Enter category for this transaction: ").strip()
 
-        # Neue Abfrage: Ist es eine fixe Kosten?
-        is_fixed_str = input("Is this a fixed cost? (y/n): ").strip().lower()
-        is_fixed = (is_fixed_str == "y")
-
-        # Wir speichern nun ein Dictionary statt nur den Kategorienamen
-        self.categories[description] = {
-            "category": cat_input,
-            "fixed": is_fixed
-        }
+        # Save the mapping for next time
+        self.categories[description] = category
         self.save_categories()
 
-        return cat_input
+        return category
 
     def save_categories(self):
         """Save the updated categories to the categories.json file."""
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(CATEGORIES_FILE), exist_ok=True)
         with open(CATEGORIES_FILE, "w", encoding="utf-8") as file:
             json.dump(self.categories, file, indent=4, ensure_ascii=False)
