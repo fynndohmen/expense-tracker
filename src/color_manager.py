@@ -1,20 +1,27 @@
-import json
 import os
+import json
 import random
 
-# Pfad zur JSON-Datei, in der Kategorie-Farben gespeichert werden.
-# Du kannst die Datei auch in "data/" oder woanders ablegen, Hauptsache
-# du definierst den korrekten Pfad:
-COLORS_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "category_colors.json")
-
+# Path to the JSON file that stores category colors
+COLORS_FILE = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "data",
+    "category_colors.json"
+)
 
 class ColorManager:
     def __init__(self):
+        """
+        Initialize the ColorManager:
+        - Defines where the color JSON lives.
+        - Sets up an empty color_map.
+        - Defines a default palette to draw from before falling back to random colors.
+        - Loads any existing colors from disk.
+        """
         self.colors_file = COLORS_FILE
         self.color_map = {}
-        # Du kannst hier eine Standard-Palette definieren,
-        # die vorrangig verwendet wird, bevor zufällige Farben
-        # generiert werden:
+        # A palette of preferred colors; used in order if not already assigned
         self.default_palette = [
             "#9b59b6", "#e74c3c", "#3498db", "#2ecc71",
             "#f1c40f", "#27ae60", "#000000",
@@ -24,35 +31,38 @@ class ColorManager:
         self._load_colors()
 
     def _load_colors(self):
-        """Versucht, vorhandene Farben aus der JSON-Datei zu laden."""
+        """Attempt to load an existing color_map from the JSON file."""
         if os.path.exists(self.colors_file):
             try:
                 with open(self.colors_file, "r", encoding="utf-8") as f:
                     self.color_map = json.load(f)
-            except:
-                print("⚠ Could not load color map properly. Starting with empty map.")
+            except Exception:
+                print("⚠ Could not load color map properly. Starting with an empty map.")
                 self.color_map = {}
         else:
+            # No file yet—start with an empty mapping
             self.color_map = {}
 
     def _save_colors(self):
-        """Speichert den aktuellen color_map-Zustand in die JSON-Datei."""
+        """Persist the current color_map to the JSON file."""
         try:
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(self.colors_file), exist_ok=True)
             with open(self.colors_file, "w", encoding="utf-8") as f:
                 json.dump(self.color_map, f, indent=2)
-        except:
+        except Exception:
             print("⚠ Could not save color_map to file.")
 
     def get_color_for_category(self, category: str) -> str:
         """
-        Gibt die Farbe für eine Kategorie zurück. Falls sie nicht existiert,
-        wird eine neue generiert und dauerhaft in die JSON-Datei geschrieben.
+        Return the color for the given category. If it doesn’t yet exist,
+        pick a new color, save it, and return it.
         """
         if category in self.color_map:
-            # Kategorie schon vorhanden => gib die gespeicherte Farbe zurück
+            # Already have a color, return it
             return self.color_map[category]
 
-        # Kategorie ist neu => neue Farbe generieren
+        # New category—generate, save, and return a new color
         new_color = self._get_new_color()
         self.color_map[category] = new_color
         self._save_colors()
@@ -60,19 +70,19 @@ class ColorManager:
 
     def _get_new_color(self) -> str:
         """
-        Sucht zuerst in der default_palette eine noch nicht benutzte Farbe,
-        sonst erzeugt sie eine zufällige Farbe.
+        Look for an unused color in the default_palette first;
+        if they’re all taken, generate a random hex color.
         """
         used_colors = set(self.color_map.values())
 
-        # 1) Versuche eine Farbe aus der Default-Palette
+        # 1) Try each color in the default palette
         for c in self.default_palette:
             if c not in used_colors:
                 return c
 
-        # 2) Wenn alles verbraucht => generiere zufällige Farbe
+        # 2) Fallback: random hex color
         return self._random_color_hex()
 
     def _random_color_hex(self) -> str:
-        """Generiert einen zufälligen Farbwert im Hex-Format, z. B. '#ABC123'."""
+        """Generate a random hex color string, e.g. '#A1B2C3'."""
         return "#" + "".join(random.choice("0123456789ABCDEF") for _ in range(6))

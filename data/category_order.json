@@ -1,0 +1,12 @@
+{
+    "fixed": [
+        "Rent",
+        "Electricity",
+        "Landline"
+    ],
+    "variable": [
+        "Food",
+        "Utilities"
+    ],
+    "unassigned": []
+}
