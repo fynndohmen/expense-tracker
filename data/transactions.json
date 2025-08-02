@@ -3,196 +3,168 @@
         "date": "2024-01-01",
         "amount": 1088,
         "category": "Income",
-        "description": "Monatsgehalt",
-        "fixed": false
+        "description": "Monthly salary"
     },
     {
         "date": "2024-01-03",
         "amount": -500,
         "category": "Rent",
-        "description": "Wohnungsmiete",
-        "fixed": true
+        "description": "Apartment rent"
     },
     {
         "date": "2024-01-10",
         "amount": -69,
         "category": "Electricity",
-        "description": "Stromrechnung",
-        "fixed": true
+        "description": "Electricity bill"
     },
     {
         "date": "2024-01-15",
         "amount": -55,
         "category": "Landline",
-        "description": "Internet & Telefon",
-        "fixed": true
+        "description": "Internet & phone"
     },
     {
         "date": "2024-01-05",
         "amount": -80,
         "category": "Food",
-        "description": "Supermarkt Einkauf",
-        "fixed": false
+        "description": "Supermarket shopping"
     },
     {
         "date": "2024-01-12",
         "amount": -80,
         "category": "Food",
-        "description": "Restaurantbesuch",
-        "fixed": false
+        "description": "Restaurant visit"
     },
     {
         "date": "2024-01-20",
         "amount": -80,
         "category": "Food",
-        "description": "Wocheneinkauf",
-        "fixed": false
+        "description": "Weekly shopping"
     },
     {
         "date": "2024-01-25",
         "amount": -25,
         "category": "Utilities",
-        "description": "Handyrechnung",
-        "fixed": true
+        "description": "Mobile phone bill"
     },
     {
         "date": "2024-01-28",
         "amount": -25,
         "category": "Utilities",
-        "description": "Streaming-Dienst",
-        "fixed": true
+        "description": "Streaming service"
     },
     {
         "date": "2024-02-01",
         "amount": 1088,
         "category": "Income",
-        "description": "Monatsgehalt",
-        "fixed": false
+        "description": "Monthly salary"
     },
     {
         "date": "2024-02-03",
         "amount": -500,
         "category": "Rent",
-        "description": "Wohnungsmiete",
-        "fixed": true
+        "description": "Apartment rent"
     },
     {
         "date": "2024-02-10",
         "amount": -69,
         "category": "Electricity",
-        "description": "Stromrechnung",
-        "fixed": true
+        "description": "Electricity bill"
     },
     {
         "date": "2024-02-15",
         "amount": -55,
         "category": "Landline",
-        "description": "Internet & Telefon",
-        "fixed": true
+        "description": "Internet & phone"
     },
     {
         "date": "2024-02-08",
         "amount": -85,
         "category": "Food",
-        "description": "Supermarkt Einkauf",
-        "fixed": false
+        "description": "Supermarket shopping"
     },
     {
         "date": "2024-02-14",
         "amount": -90,
         "category": "Food",
-        "description": "B\u00e4ckerei",
-        "fixed": false
+        "description": "Bakery"
     },
     {
         "date": "2024-02-14",
         "amount": -50,
         "category": "Food",
-        "description": "B\u00e4ckerei",
-        "fixed": false
+        "description": "Bakery"
     },
     {
         "date": "2024-02-22",
         "amount": -85,
         "category": "Food",
-        "description": "Wocheneinkauf",
-        "fixed": false
+        "description": "Weekly shopping"
     },
     {
         "date": "2024-02-26",
         "amount": -30,
         "category": "Utilities",
-        "description": "Streaming-Dienst",
-        "fixed": true
+        "description": "Streaming service"
     },
     {
         "date": "2024-02-28",
         "amount": -25,
         "category": "Utilities",
-        "description": "Handyrechnung",
-        "fixed": true
+        "description": "Mobile phone bill"
     },
     {
         "date": "2024-03-01",
         "amount": 1088,
         "category": "Income",
-        "description": "Monatsgehalt",
-        "fixed": false
+        "description": "Monthly salary"
     },
     {
         "date": "2024-03-03",
         "amount": -500,
         "category": "Rent",
-        "description": "Wohnungsmiete",
-        "fixed": true
+        "description": "Apartment rent"
     },
     {
         "date": "2024-03-10",
         "amount": -69,
         "category": "Electricity",
-        "description": "Stromrechnung",
-        "fixed": true
+        "description": "Electricity bill"
     },
     {
         "date": "2024-03-15",
         "amount": -55,
         "category": "Landline",
-        "description": "Internet & Telefon",
-        "fixed": true
+        "description": "Internet & phone"
     },
     {
         "date": "2024-03-07",
         "amount": -95,
         "category": "Food",
-        "description": "Supermarkt Einkauf",
-        "fixed": false
+        "description": "Supermarket shopping"
     },
     {
         "date": "2024-03-13",
         "amount": -85,
         "category": "Food",
-        "description": "Fast Food",
-        "fixed": false
+        "description": "Fast Food"
     },
     {
         "date": "2024-03-23",
         "amount": -70,
         "category": "Food",
-        "description": "Wocheneinkauf",
-        "fixed": false
+        "description": "Weekly shopping"
     },
     {
         "date": "2024-03-27",
         "amount": -35,
         "category": "Utilities",
-        "description": "Abonnement",
-        "fixed": true
+        "description": "Subscription"
     },
     {
         "date": "2024-03-29",
         "amount": -25,
         "category": "Utilities",
-        "description": "Handyrechnung",
-        "fixed": true
+        "description": "Mobile phone bill"
     }
 ]
