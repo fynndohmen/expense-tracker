@@ -16,7 +16,7 @@ def load_area_categories():
             data = json.load(f)
         return data.get("fixed", []) + data.get("variable", [])
     except Exception:
-        return []  # keine Kategorien -> evtl. nur Balance/Income plotten
+        return []
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
