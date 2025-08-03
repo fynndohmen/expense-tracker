@@ -3,8 +3,6 @@ import sys
 import json
 import os
 from datetime import date
-# ===== Live-FinTS Imports (uncomment for production) =====
-# from fints_connector import FinTSConnector
 
 from categorizer import Categorizer
 from visualizer import Visualizer
@@ -82,11 +80,18 @@ def save_transactions(transactions):
 # Main application logic
 # --------------------------------------------------------------------
 def main():
-    # ===== Live-FinTS Mode (uncomment to activate) =====
+
+    # === DYNAMIC PART: FinTS-Integration ===
     """
+    # Uncomment this block for Live-FinTS mode:
+
+    from fints_connector import FinTSConnector
+
+    # Initialize and test connection
     fints = FinTSConnector()
     fints.test_connection()
 
+    # Decide whether to fetch full history or only new transactions
     existing = load_transactions()
     if existing:
         oldest_iso = min(tx["date"] for tx in existing)
@@ -97,30 +102,32 @@ def main():
         print("⏳ Fetching full history")
         transactions = fints.get_transactions()
 
+    # Fetch live balances
     balance_dict = fints.get_balance()
     print("🏦 Current balances:")
     for iban, info in balance_dict.items():
         print(f"  • {iban}: {info['amount']} {info['currency']}")
     """
 
-    # ===== Local Test Mode =====
+    # === STATIC PART: Local Test Mode ===
+    #"""
+    # Use this block if you only want to read from the local JSON file:
+
     transactions = load_transactions()
     if not transactions:
         print("⚠ No transactions available. Exiting.")
         return
 
     print(f"✅ {len(transactions)} transactions loaded (local).")
+    #"""
 
-    # ===== Categorization =====
+    # --- After choosing one of the above, proceed with categorization & visualization ---
     categorizer = Categorizer()
     for tx in transactions:
         if not tx.get("category"):
             tx["category"] = categorizer.categorize_transaction(tx)
-        # no more "fixed" flag prompting here
-
     save_transactions(transactions)
 
-    # ===== Visualization =====
     viz = Visualizer()
     viz.generate_chart()
 
@@ -128,7 +135,7 @@ def main():
 # CLI Entry Point
 # --------------------------------------------------------------------
 if __name__ == "__main__":
-    # manual: python src/main.py cm  → opens Category Manager
+    # manual: python main.py cm  → opens Category Manager
     if len(sys.argv) > 1 and sys.argv[1].lower() == "cm":
         run_category_manager()
     else:

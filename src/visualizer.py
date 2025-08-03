@@ -141,37 +141,37 @@ class Visualizer:
         df_income = df_income[~df_income.index.duplicated(keep="last")]
         df_income = df_income.reindex(full_date_range).fillna(0)
 
-        # --- 4) Balance-Line (static; for testing) ---
+        # --- 4) Balance line ---
+        # --- STATIC PART: Use a fixed initial balance for testing ---
+        #"""
         initial_balance = 1000.0
         df["cumulative_sum"] = df["amount"].cumsum()
         df_balance = (
-            df.set_index("date")[["cumulative_sum"]]
+            df.set_index("date")[ ["cumulative_sum"] ]
               .rename(columns={"cumulative_sum": "account_balance"})
         )
-
         df_balance = df_balance[~df_balance.index.duplicated(keep="last")]
         df_balance["account_balance"] += initial_balance
         df_balance = df_balance.reindex(full_date_range).ffill().fillna(initial_balance)
+        #"""
 
-        # retrieve Live-Balance via FinTS:
-        '''
+        # --- DYNAMIC PART: Fetch live balances via FinTS Connector ---
+        """
         fin = FinTSConnector()
         bal_dict = fin.get_balance()  # {iban: {"amount": X, "currency": Y}, …}
         initial_balance = sum(item["amount"] for item in bal_dict.values())
-                # calculate cumulative transaction sum
         df["cumulative_sum"] = df["amount"].cumsum()
-        
-        # calculate real balance (startingbalance + transactions)
+
         df_balance = (
             df
-            .set_index("date")[["cumulative_sum"]]
+            .set_index("date")[ ["cumulative_sum"] ]
             .rename(columns={"cumulative_sum": "account_balance"})
         )
 
         df_balance = df_balance[~df_balance.index.duplicated(keep="last")]
         df_balance["account_balance"] += initial_balance
         df_balance = df_balance.reindex(full_date_range).ffill().fillna(initial_balance)
-        '''
+        """
 
         # --- 5) build Plot  ---
         fig = go.Figure()
