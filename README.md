@@ -1,99 +1,146 @@
+# Expense Tracker
 
+The **Expense Tracker** is a Python-based application that connects to your bank via FinTS or loads transactions from a local JSON file, automatically categorizes them, lets you manage and order your spending categories through a GUI, assigns colors to each category, and generates rich, interactive visualizations of your income, expenses, and account balance using Plotly.
 
+---
 
+## Key Features
 
-Expense Tracker
-The Expense Tracker is a Python-based application that retrieves your bank transactions via FinTS, categorizes them, and visualizes your expenses, income, and overall account balance using interactive charts (Plotly). The program supports fetching live bank data as well as loading transactions from a local JSON file.
+- **Live Bank Integration (FinTS)**: Fetch SEPA transactions and current balances directly from your bank using the FinTS-Pin/TAN protocol (via `fints_connector.py`).
+- **Local JSON Fallback**: Load and test transactions locally from `data/transactions.json` without bank connection.
+- **Smart Categorization**: The `Categorizer` prompts you once for each new transaction description and saves mappings in `data/categories.json` for future automatic categorization.
+- **Category Management GUI**: Organize categories into **Fixed**, **Variable**, and **Unassigned** using a Tkinter-based Category Manager. Your order is persisted in `data/category_order.json`.
+- **Automated Color Assignment**: `ColorManager` assigns distinct colors per category (from a preset palette or random hex) and saves them in `data/category_colors.json`.
+- **Interactive Visualization**:
+  - Stacked area chart of monthly fixed and variable expenses
+  - Separate income line
+  - Account balance line (static for testing or fetched live)
+  - Daily cumulative expense lines with markers and hover tooltips showing transaction details
+- **Duplicate Detection**: `save_transactions` merges and deduplicates transactions based on date, amount, and description.
+- **Mode Toggle**: Switch between **Dynamic (FinTS)** and **Static (Local)** modes by commenting/uncommenting blocks in `src/main.py`.
+- **Quick Category Manager Launch**: Run `python src/main.py cm` to open the Category Manager GUI directly.
 
-Features
+---
 
-Bank Connection via FinTS:
-Retrieve transactions and current account balances from your bank using the FinTS protocol.
+## Installation & Setup
 
-Transaction Categorization:
-Automatically categorize transactions using user-defined categories. If a transaction is not categorized, the application prompts you for a category and saves it.
+### 1. Clone the Repository
 
-Data Visualization:
-Generate interactive charts that display:
-
-Stacked area charts for expenses (with fixed and variable cost categories).
-A separate income line.
-A real-time account balance line (retrieved via FinTS).
-
-Local Data Storage:
-Transactions are stored in data/transactions.json and categories in data/categories.json.
-
-Requirements
-
-Python 3.8+
-Plotly
-pandas
-python-dotenv
-FinTS3PinTanClient (python-fints) (Ensure you have the appropriate version installed)
-You can install the required packages using pip and the provided requirements.txt:
-
-pip install -r requirements.txt
-
-Getting Started
-
-Cloning the Repository
-Open a terminal (or Git Bash) on your machine.
-
-Clone the repository by running:
-
+```bash
 git clone https://github.com/fynndohmen/expense-tracker.git
-
-Navigate into the project directory:
-
 cd expense-tracker
+```
 
-Setting Up the Virtual Environment
-Create a virtual environment:
+### 2. Ensure `.env` is Ignored
 
-python -m venv venv
+Make sure your root `.gitignore` contains:
 
-Activate the virtual environment:
+```
+.env
+```
 
-On Windows:
+### 3. Create a Virtual Environment
 
-venv\Scripts\activate
-On macOS/Linux:
-
+```bash
+python3 -m venv venv
+# On macOS/Linux:
 source venv/bin/activate
-Install the required dependencies:
+# On Windows:
+venv\Scripts\activate
+```
 
+### 4. Install Dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
-Configuring the Application
+\`\` should include at least:
 
-Create a .env file in the root directory of the project with the following content:
+```
+pandas
+plotly
+python-dotenv
+python-fints
+```
 
-BANK_CODE=your_bank_code
-USER_ID=your_user_id
-CUSTOMER_ID=your_customer_id
-PIN=your_pin
-Replace the placeholders with your actual bank credentials. Note: Make sure not to push the .env file to public repositories.
+### 5. Configure Environment Variables
 
-Running the Application
-Once the environment is set up and the dependencies are installed, you can run the application by executing:
+Create a file named `.env` in the project root with your banking credentials:
 
-python src/main.py
+```dotenv
+BANK_CODE=YOUR_BANK_CODE
+USER_ID=YOUR_USER_ID
+CUSTOMER_ID=YOUR_CUSTOMER_ID
+PIN=YOUR_PIN
+FINTS_SERVER=https://...
+PRODUCT_ID=YourProductID
+```
 
-The program will load transactions from data/transactions.json (or fetch them via FinTS if enabled) and then prompt for categorization if needed.
+> **Warning:** Never commit your `.env` file to version control.
 
-The interactive chart will be displayed once the transactions are processed.
+---
 
-Additional Information
-FinTS Connection:
-The FinTS connection is handled in fints_connector.py. Ensure that your bank supports FinTS and that you have the correct credentials and product ID.
+## Usage
 
-Categorization:
-Categories are stored in data/categories.json. If you update a category via the prompt, it will be saved and used for future transactions.
+### Dynamic Mode (Live FinTS)
 
-Visualization:
-The visualization logic is in visualizer.py. You can modify this file to customize the charts.
+1. In \`\`, uncomment the **DYNAMIC PART** block and comment out the **STATIC PART**.
+2. Run:
+   ```bash
+   python src/main.py
+   ```
+3. The app will prompt for TAN if required, fetch new transactions since the last sync, retrieve current balances, categorize uncategorized transactions, and display the interactive chart.
 
-Troubleshooting
-If you encounter errors related to missing modules, ensure you have activated your virtual environment and installed all dependencies with pip install -r requirements.txt.
-If the application cannot find your transactions.json or categories.json files, check that your working directory is set to the project root.
-For FinTS-specific issues, refer to the python-fints documentation.
+### Static Mode (Local JSON)
+
+1. In \`\`, uncomment the **STATIC PART** block and comment out the **DYNAMIC PART**.
+2. Ensure `data/transactions.json` contains your test data.
+3. Run:
+   ```bash
+   python src/main.py
+   ```
+4. Transactions will be loaded locally and visualized; no bank connection is needed.
+
+### Open Category Manager
+
+```bash
+python src/main.py cm
+```
+
+---
+
+## Project Structure
+
+```
+expense-tracker/
+├── data/
+│   ├── transactions.json       # Stored transactions
+│   ├── categories.json         # Description→category mappings
+│   ├── category_order.json     # Fixed, Variable, Unassigned order
+│   └── category_colors.json    # Assigned category colors
+├── src/
+│   ├── main.py                 # Entry point with mode toggle
+│   ├── categorizer.py          # Interactive category mapping
+│   ├── category_manager.py     # Tkinter GUI for ordering categories
+│   ├── color_manager.py        # Color assignment per category
+│   ├── fints_connector.py      # Live FinTS connection logic
+│   └── visualizer.py           # Plotly-based chart generator
+├── requirements.txt            # Python dependencies
+├── .gitignore                  # Files to ignore in Git
+└── README.md                   # This file
+```
+
+---
+
+## Troubleshooting
+
+- **Missing Modules**: Activate your virtual environment and run `pip install -r requirements.txt`.
+- \`\`\*\* not read\*\*: Verify `.env` is in the project root and named exactly `.env`.
+- **Gan**: If you cloned an older branch, pull the latest changes: `git pull`.
+- **FinTS Issues**: Consult the [python-fints documentation](https://github.com/steinfletcher/python-fints).
+
+---
+
+Enjoy deeper insights into your spending with this flexible, FinTS-powered Python Expense Tracker!
+
